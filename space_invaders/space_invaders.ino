@@ -113,6 +113,13 @@ class Invader {
     // Modifies: strength
     // calls: draw, erase
     void hit() {
+      
+      strength--;
+      invader.erase();
+      if (strength != 0) {
+        invader.draw();
+      }
+
     }
 
   private:
@@ -205,6 +212,7 @@ class Cannonball {
     
     // resets private data members to initial values
     void hit() {
+      ball = Cannonball();
     }
     
     // draws the Cannonball, if it is fired
@@ -263,6 +271,7 @@ class Player {
     
     // Modifies: lives
     void die() {
+      lives--;
     }
     
     // draws the Player
