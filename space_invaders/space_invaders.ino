@@ -97,6 +97,7 @@ class Invader {
     // Moves the Invader down the screen by one row
     // Modifies: y
     void move() {
+  
     }
     
     // draws the Invader if its strength is greater than 0
@@ -203,6 +204,9 @@ class Cannonball {
     
     // sets private data members
     void fire(int x_arg, int y_arg) {
+      x = x_arg;
+      y = y_arg;
+      fired = true;
     }
     
     // moves the Cannonball and detects if it goes off the screen
@@ -248,8 +252,8 @@ class Cannonball {
 class Player {
   public:
     Player() {
-      x = 0;
-      y = 0;
+      x = 16;
+      y = 14;
       lives = 3;
     }
     
@@ -277,11 +281,13 @@ class Player {
     // draws the Player
     // calls: draw_with_rgb
     void draw() {
+      draw_with_rgb(GREEN);
     }
     
     // draws black where the Player used to be
     // calls: draw_with_rgb
     void erase() {
+      draw_with_rgb(BLACK);
     }
 
   private:
@@ -342,12 +348,25 @@ class Game {
     // sets up a new game of Space Invaders
     // Modifies: global variable matrix
     void setupGame() {
+      matrix.fillScreen(BLACK.to_33());
+      time=millis();
+      player.draw();
     }
     
     // advances the game simulation one step and renders the graphics
     // see spec for details of game
     // Modifies: global variable matrix
     void update(int potentiometer_value, bool button_pressed) {
+      player.erase();
+      
+      int player_x=map(potentiometer_value, 0, 1023, 0, 31);
+      player.set_x(player_x);
+
+      player.draw();
+
+      if(button_pressed && !ball.has_been_fired()){
+        ball.fire(player.get_x(), player.get_y()-2);
+      }
     }
 
   private:
@@ -374,6 +393,7 @@ void setup() {
   Serial.begin(9600);
   pinMode(BUTTON_PIN_NUMBER, INPUT);
   matrix.begin();
+  game.setupGame();
 }
 
 // see https://www.arduino.cc/reference/en/language/structure/sketch/loop/
