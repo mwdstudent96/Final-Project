@@ -118,9 +118,9 @@ class Invader {
     void hit() {
       
       strength--;
-      invader.erase();
+      erase();
       if (strength != 0) {
-        invader.draw();
+        draw();
       }
 
     }
@@ -375,54 +375,79 @@ class Game {
     // sets up a new game of Space Invaders
     // Modifies: global variable matrix
     void setupGame() {
-      matrix.fillScreen(BLACK.to_33());
-      time=millis();
+      matrix.fillScreen(BLACK.to_333());
+      time = millis();
       player.draw();
+      level = 1;
+      set_level();
     }
     
     // advances the game simulation one step and renders the graphics
     // see spec for details of game
     // Modifies: global variable matrix
     void update(int potentiometer_value, bool button_pressed) {
-      player.erase();
-      
-      int player_x=map(potentiometer_value, 0, 1023, 0, 31);
-      player.set_x(player_x);
 
-      player.draw();
+      //Updates time
+      time = millis();
 
-      if(button_pressed && !ball.has_been_fired()){
-        ball.fire(player.get_x(), player.get_y()-2);
-        check_ball_overlap();
-      }
-      unsigned long now = millis();
-      if (fired && now - last_ball_move >= BALL_DELAY) {
-        last_ball_move = now;
-        int target = invader_at(ball.get_x(), ball.get_y() - 1);
-        if (target != -1) {
-          ball.hit();
-          enemies[target].hit();
+      //Ends game if player has no more lives
+      if(player.get_lives() >= 0){
+        //Draws player
+        player.erase();
+        int player_x = map(potentiometer_value, 0, 1023, 0, 31);
+        player.set_x(player_x);
+        player.draw();
+
+        //Gets cannonball input
+        if(button_pressed && !ball.has_been_fired()){
+          ball.fire(player.get_x(), player.get_y()-2);
+          check_ball_overlap();
         }
-        else {
-          ball.move();
-        }
-      }
-      if (now - last_invader_move >= INVADER_DELAY) {
-        last_invader_move = now;
-        int first = 8;
-        if (!bottom_row_alive()) {
-          first = 0;
-        }
-        for (int i = first; i < first + 8; i++) {
-          if (enemies[i].get_strength() > 0) {
-            enemies[i].erase();
-            enemies[i].move();
-            enemies[i].draw();
+
+        if (ball.has_been_fired() && time - last_ball_move >= BALL_DELAY) {
+          last_ball_move = time;
+          int target = invader_at(ball.get_x(), ball.get_y() - 1);
+          if (target != -1) {
+            ball.hit();
+            enemies[target].hit();
+          }
+          else {
+            ball.move();
           }
         }
-        check_ball_overlap();
+
+        //Moves invaders
+        if (time - last_invader_move >= INVADER_DELAY) {
+          last_invader_move = time;
+          int first = 8;
+          if (!bottom_row_alive()) {
+            first = 0;
+          }
+          for (int i = first; i < first + 8; i++) {
+            if (enemies[i].get_strength() > 0) {
+              enemies[i].erase();
+              enemies[i].move();
+              enemies[i].draw();
+            }
+          }
+          check_ball_overlap();
+        }
+
+        ball.draw();
+
+        //Advances to next level if level was cleared
+        if(level_cleared()){
+          level++;
+          set_level();
+        }
       }
-      ball.draw();
+      else{
+        //Displays "game over" for 3 seconds, then resets the game
+        matrix.fillScreen(BLACK.to_333());
+        game_over();
+        delay(3000);
+        setupGame();
+      }
     }
     
 
@@ -437,6 +462,13 @@ class Game {
 
     // check if Player defeated all Invaders in current level
     bool level_cleared() {
+      for(int i = 0; i < NUM_ENEMIES; i++){
+        if(enemies[i].get_strength() > 0){
+          return false;
+        }
+      }
+
+      return true;
     }
 
     // set up a level
@@ -444,6 +476,154 @@ class Game {
       ball.reset();
       last_ball_move = millis();
       last_invader_move = millis();
+    }
+
+    // Initializes each level
+    void set_level() {
+
+      //Displays level and lives before level starts
+      matrix.fillScreen(BLACK.to_333());
+      print_level(level);
+      delay(500);
+      matrix.fillScreen(BLACK.to_333());
+      print_lives(player.get_lives());
+      delay(500);
+
+      int x_spawn = 0;
+      int y_spawn = 0;
+
+      //Level 1 setup
+      if(level == 1){
+        //Initializes and draws 8 invaders at strength 1 for level 1
+        for(int i = 0; i < NUM_ENEMIES / 2; i++){
+          enemies[i].initialize(x_spawn, y_spawn, 1);
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+      }
+
+      //Level 2 setup
+      if(level == 2){
+
+        //Initializes and draws the first 8 invaders at strength 1 & 2 for level 2
+        for(int i = 0; i < NUM_ENEMIES / 2; i++){
+          //If the invader is at an even index, spawn it with 1 strength, else spawn it at 2
+          if(i % 2 == 0){
+            enemies[i].initialize(x_spawn, y_spawn, 1);
+          }
+          else{
+            enemies[i].initialize(x_spawn, y_spawn, 2);
+          }
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+
+        //Increments the y_spawn coordinate to spawn next row
+        y_spawn += 4;
+        //resets x_spawn
+        x_spawn = 0;
+
+        //Initializes and draws the second row of 8 invaders at strength 1 & 2 for level 2
+        for(int i = 8; i < NUM_ENEMIES; i++){
+          //If the invader is at an even index, spawn it with 2 strength, else spawn it at 1
+          if(i % 2 == 0){
+            enemies[i].initialize(x_spawn, y_spawn, 2);
+          }
+          else{
+            enemies[i].initialize(x_spawn, y_spawn, 1);
+          }
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+      }
+
+      if(level == 3){
+
+        int strengthIndex = 1;
+
+
+        //Initializes and draws the first 8 invaders at strength index
+        for(int i = 0; i < NUM_ENEMIES / 2; i++){
+          //Resets the strength index if it gets too high
+          if(strengthIndex > 5){
+            strengthIndex = 1;
+          }
+          enemies[i].initialize(x_spawn, y_spawn, strengthIndex);
+          enemies[i].draw();
+          x_spawn += 4;
+          strengthIndex++;
+        }
+
+        //Increments the y_spawn coordinate to spawn next row
+        y_spawn += 4;
+        //resets x_spawn
+        x_spawn = 0;
+
+        //Initializes and draws the second row of 8 invaders at strength index
+        for(int i = 8; i < NUM_ENEMIES; i++){
+          if(strengthIndex > 5){
+            strengthIndex = 1;
+          }
+          enemies[i].initialize(x_spawn, y_spawn, strengthIndex);
+          enemies[i].draw();
+          x_spawn += 4;
+          strengthIndex++;
+        }
+      }
+
+      if(level == 4){
+        //Initializes and draws the first 8 invaders at strength 4 & 5
+        for(int i = 0; i < NUM_ENEMIES / 2; i++){
+          //If the invader is at an even index, spawn it with 5 strength, else spawn it at 4
+          if(i % 2 == 0){
+            enemies[i].initialize(x_spawn, y_spawn, 5);
+          }
+          else{
+            enemies[i].initialize(x_spawn, y_spawn, 4);
+          }
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+
+        //Increments the y_spawn coordinate to spawn next row
+        y_spawn += 4;
+        //resets x_spawn
+        x_spawn = 0;
+
+        //Initializes and draws the second row of 8 invaders at strength 2 & 3
+        for(int i = 8; i < NUM_ENEMIES; i++){
+          //If the invader is at an even index, spawn it with 2 strength, else spawn it at 3
+          if(i % 2 == 0){
+            enemies[i].initialize(x_spawn, y_spawn, 2);
+          }
+          else{
+            enemies[i].initialize(x_spawn, y_spawn, 3);
+          }
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+      }
+
+      if(level >= 5){
+        //Initializes and draws the first 8 invaders with random strengths from 1-5
+        for(int i = 0; i < NUM_ENEMIES / 2; i++){
+          enemies[i].initialize(x_spawn, y_spawn, random(1,6));
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+
+        //Increments the y_spawn coordinate to spawn next row
+        y_spawn += 4;
+        //resets x_spawn
+        x_spawn = 0;
+
+        //Initializes and draws the second row of 8 invaders with random strengths
+        for(int i = 8; i < NUM_ENEMIES; i++){
+          enemies[i].initialize(x_spawn, y_spawn, random(1,6));
+          enemies[i].draw();
+          x_spawn += 4;
+        }
+      }
     }
 
     bool bottom_row_alive() {
@@ -454,6 +634,7 @@ class Game {
       }
       return false;
     }
+
     int invader_at(int px, int py) {
       for (int i = 0; i < NUM_ENEMIES; i++) {
         if (enemies[i].covers(px, py)) {
@@ -462,6 +643,7 @@ class Game {
       }
       return -1;
     }
+
     void check_ball_overlap() {
       if (!ball.has_been_fired()) {
         return;
@@ -494,25 +676,6 @@ void loop() {
   bool button_pressed = (digitalRead(BUTTON_PIN_NUMBER) == HIGH);
 
   game.update(potentiometer_value, button_pressed);
-
-
-  //TESTS PRINTING FUNCTIONS
-  print_level(1);
-  delay(500);
-  //Clears screen
-  matrix.fillScreen(BLACK.to_333());
-
-  print_lives(3);
-  delay(500);
-  //Clears screen
-  matrix.fillScreen(BLACK.to_333());
-
-  game_over();
-  delay(500);
-  //Clears screen
-  matrix.fillScreen(BLACK.to_333());
-
-  //Cannot test draw_with_rgb yet because they are private functions and we haven't implemented of the other class functions
 }
 
 // displays Level
