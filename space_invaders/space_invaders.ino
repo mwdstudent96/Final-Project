@@ -379,11 +379,36 @@ class Game {
     // sets up a new game of Space Invaders
     // Modifies: global variable matrix
     void setupGame() {
+      player = Player();
       matrix.fillScreen(BLACK.to_333());
       time = millis();
       player.draw();
       level = 1;
       set_level();
+    }
+
+    // checks if the player is hit by an invader
+    bool player_hit() {
+      int px = player.get_x();
+      int py = player.get_y();
+      if (invader_at(px, py) != -1 || 
+            invader_at(px - 1, py + 1) != -1 || 
+            invader_at(px, py + 1) != -1 || 
+            invader_at(px + 1, py + 1) != -1) {
+        return true;
+      }
+      return false;
+    }
+
+    //checks if an invader is at the bottom
+    bool invader_at_bottom() {
+      for (int i = 0; i < NUM_ENEMIES; i++) {
+        if (enemies[i].get_strength() > 0 
+              && enemies[i].get_y() + 3 >= 15) {
+          return true;
+        }
+      }
+      return false;
     }
     
     // advances the game simulation one step and renders the graphics
@@ -395,7 +420,7 @@ class Game {
       time = millis();
 
       //Ends game if player has no more lives
-      if(player.get_lives() >= 0){
+      if(player.get_lives() > 0){
         //Draws player
         player.erase();
         int player_x = map(potentiometer_value, 0, 1023, 0, 30);
@@ -438,6 +463,14 @@ class Game {
         }
 
         ball.draw();
+
+        if (player_hit() || invader_at_bottom()) {
+          player.die();
+          if (player.get_lives() > 0) {
+            set_level();
+          }
+          return;
+        }
 
         //Advances to next level if level was cleared
         if(level_cleared()){
@@ -628,6 +661,7 @@ class Game {
           x_spawn += 4;
         }
       }
+      reset_level();
     }
 
     bool bottom_row_alive() {
