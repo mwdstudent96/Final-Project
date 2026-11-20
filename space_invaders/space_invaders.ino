@@ -105,11 +105,15 @@ class Invader {
     // draws the Invader if its strength is greater than 0
     // calls: draw_with_rgb
     void draw() {
+      if (strength > 0){
+        draw_with_rgb(GREEN, RED);
+      }
     }
     
     // draws black where the Invader used to be
     // calls: draw_with_rgb
     void erase() {
+      draw_with_rgb(BLACK, BLACK);
     }    
     
     // Invader is hit by a Cannonball.
@@ -394,7 +398,7 @@ class Game {
       if(player.get_lives() >= 0){
         //Draws player
         player.erase();
-        int player_x = map(potentiometer_value, 0, 1023, 0, 31);
+        int player_x = map(potentiometer_value, 0, 1023, 0, 30);
         player.set_x(player_x);
         player.draw();
 
@@ -403,7 +407,7 @@ class Game {
           ball.fire(player.get_x(), player.get_y()-2);
           check_ball_overlap();
         }
-
+      
         if (ball.has_been_fired() && time - last_ball_move >= BALL_DELAY) {
           last_ball_move = time;
           int target = invader_at(ball.get_x(), ball.get_y() - 1);
