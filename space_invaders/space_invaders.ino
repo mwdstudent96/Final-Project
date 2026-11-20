@@ -16,6 +16,8 @@ const int BUTTON_PIN_NUMBER = 10;
 
 // global constant for the number of Invaders in the game
 const int NUM_ENEMIES = 16;
+const unsigned long BALL_DELAY = 50;
+const unsigned long INVADER_DELAY = 2000;
 
 // a global variable that represents the LED screen
 RGBmatrixPanel matrix(A, B, C, CLK, LAT, OE, false);
@@ -97,7 +99,7 @@ class Invader {
     // Moves the Invader down the screen by one row
     // Modifies: y
     void move() {
-  
+      y++;
     }
     
     // draws the Invader if its strength is greater than 0
@@ -121,6 +123,30 @@ class Invader {
         invader.draw();
       }
 
+    }
+
+    bool covers(int px, int py) {
+      if (strength <= 0) {
+        return false;
+      }
+      int col = px - x;
+      int row = py - y;
+      if (col > 3 || col < 0 || row > 3 || row < 0) {
+        return false;
+      }
+      if (row == 0) {
+        if (col == 1 || col == 2) {
+          return true;
+        }
+        return false;
+      }
+      if (row == 3) {
+        if (col == 0 || col == 3) {
+          return true;
+        }
+        return false;
+      }
+      return true;
     }
 
   private:
@@ -186,6 +212,7 @@ class Cannonball {
     
     // resets private data members to initial values
     void reset() {
+      erase();
       x = 0;
       y = 0;
       fired = false;
@@ -212,35 +239,33 @@ class Cannonball {
     // moves the Cannonball and detects if it goes off the screen
     // Modifies: y, fired
     void move() {
+      erase();
+      y--;
+      if (y < 0) {
+        fired = false;
+      }
     }
     
     // resets private data members to initial values
     void hit() {
-      ball = Cannonball();
+      erase();
+      fired = false;
     }
     
     // draws the Cannonball, if it is fired
     void draw() {
-      /*
-      * I assume that this may be more complicated based on moving the cannonball,
-      * but drawing the cannonball based on its x and y coordinates with the color orange is done by this code:
-      * 
-      * matrix.drawPixel(x, y, ORANGE.to_333());
-      * matrix.drawPixel(x, y+1, ORANGE.to_333());
-      * 
-      * This draws the cannon ball like this:
-      *   0
-      *   #
-      * With the top of the cannonball being represented by x,y
-      * and the bottom being represented by x, y+1.
-      * This also may not work based on the orientation of the pixel screen
-      * - Nate
-      */
+      if (fired) {
+        matrix.drawPixel(x, y, ORANGE.to_333());
+        matrix.drawPixel(x, y + 1, ORANGE.to_333());
+      }
     }
     
     // draws black where the Cannonball used to be
     void erase() {
-      // To erase the previous cannonball, use matrix.drawPixel() and color BLACK at the previous x and y coordinates - Nate
+      if (fired) {
+        matrix.drawPixel(x, y, BLACK.to_333());
+        matrix.drawPixel(x, y + 1, BLACK.to_333());
+      }
     }
 
   private:
@@ -343,6 +368,8 @@ class Game {
     Game() {
       level = 0;
       time = 0;
+      last_ball_move = 0;
+      last_invader_move = 0;
     }
     
     // sets up a new game of Space Invaders
@@ -366,12 +393,44 @@ class Game {
 
       if(button_pressed && !ball.has_been_fired()){
         ball.fire(player.get_x(), player.get_y()-2);
+        check_ball_overlap();
       }
+      unsigned long now = millis();
+      if (fired && now - last_ball_move >= BALL_DELAY) {
+        last_ball_move = now;
+        int target = invader_at(ball.get_x(), ball.get_y() - 1);
+        if (target != -1) {
+          ball.hit();
+          enemies[target].hit();
+        }
+        else {
+          ball.move();
+        }
+      }
+      if (now - last_invader_move >= INVADER_DELAY) {
+        last_invader_move = now;
+        int first = 8;
+        if (!bottom_row_alive()) {
+          first = 0;
+        }
+        for (int i = first; i < first + 8; i++) {
+          if (enemies[i].get_strength() > 0) {
+            enemies[i].erase();
+            enemies[i].move();
+            enemies[i].draw();
+          }
+        }
+        check_ball_overlap();
+      }
+      ball.draw();
     }
+    
 
   private:
     int level;
     unsigned long time;
+    unsigned long last_ball_move;
+    unsigned long last_invader_move;
     Player player;
     Cannonball ball;
     Invader enemies[NUM_ENEMIES];
@@ -382,6 +441,39 @@ class Game {
 
     // set up a level
     void reset_level() {
+      ball.reset();
+      last_ball_move = millis();
+      last_invader_move = millis();
+    }
+
+    bool bottom_row_alive() {
+      for (int i = 8; i < NUM_ENEMIES; i++) {
+        if (enemies[i].get_strength() > 0) {
+          return true;
+        }
+      }
+      return false;
+    }
+    int invader_at(int px, int py) {
+      for (int i = 0; i < NUM_ENEMIES; i++) {
+        if (enemies[i].covers(px, py)) {
+          return i;
+        }
+      }
+      return -1;
+    }
+    void check_ball_overlap() {
+      if (!ball.has_been_fired()) {
+        return;
+      }
+      int target = invader_at(ball.get_x(), ball.get_y());
+      if (target == -1) {
+        target = invader_at(ball.get_x(), ball.get_y() + 1);
+      }
+      if (target != -1) {
+        ball.hit();
+        enemies[target].hit();
+      }
     }
 };
 
